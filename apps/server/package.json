@@ -11,20 +11,20 @@
     "db:push": "prisma db push"
   },
   "dependencies": {
-    "colyseus": "^0.15.26",
     "@colyseus/schema": "^2.0.37",
-    "@colyseus/ws-transport": "^0.14.0",
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
+    "@colyseus/ws-transport": "^0.15.3",
+    "@medieval-patterns/shared": "workspace:*",
     "@prisma/client": "^5.0.0",
     "@supabase/supabase-js": "^2.0.0",
-    "@medieval-patterns/shared": "workspace:*"
+    "colyseus": "^0.15.26",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
   },
   "devDependencies": {
-    "@types/express": "^4.17.17",
     "@types/cors": "^2.8.13",
-    "typescript": "^5.0.0",
+    "@types/express": "^4.17.17",
+    "prisma": "^5.0.0",
     "ts-node-dev": "^2.0.0",
-    "prisma": "^5.0.0"
+    "typescript": "^5.0.0"
   }
 }
