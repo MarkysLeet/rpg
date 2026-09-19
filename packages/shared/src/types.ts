@@ -36,12 +36,19 @@ export interface Item {
 
 export interface PlayerState {
     id: string;
+    name: string;
     x: number;
     z: number;
     rotation: number;
     hp: number;
+    maxHp: number;
     stamina: number;
     isDodging: boolean;
+    gold: number;
+    equippedWeaponId: string; // no undefined to make schema easy
+    baseDamage: number;
+    critChance: number;
+    critMult: number;
 }
 
 export interface BossState {
@@ -53,5 +60,17 @@ export interface BossState {
     phase: "normal" | "enraged";
     isTelegraphing: boolean;
     telegraphRadius?: number;
-    telegraphPosition?: { x: number, z: number };
+    telegraphPositionX?: number;
+    telegraphPositionZ?: number;
+}
+
+export interface LootDropState {
+    id: string;
+    x: number;
+    z: number;
+    ownerId: string;
+    rarity: ItemRarity;
+    floatVal: number;
+    patternSeed: number;
+    isAppraised: boolean;
 }

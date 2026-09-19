@@ -5,13 +5,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Medieval Patterns</title>
   </head>
-  <body>
-    <div id="ui-layer">
-      <div class="p-4 bg-black/50 pointer-events-auto m-4 rounded max-w-xs">
-        <h1 class="text-xl font-bold text-yellow-500">Medieval Patterns</h1>
-        <p class="text-sm mt-2 text-gray-300">WASD to move, Mouse to aim</p>
-        <p class="text-sm mt-1 text-gray-400" id="status">Connecting...</p>
-      </div>
+  <body class="bg-black overflow-hidden m-0">
+    <!-- Start Menu -->
+    <div id="start-menu" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 bg-opacity-90 z-50 pointer-events-auto">
+        <h1 class="text-4xl font-bold text-yellow-500 mb-8">Medieval Patterns</h1>
+        <div class="bg-gray-800 p-6 rounded-lg shadow-xl w-80 flex flex-col gap-4 border border-gray-700">
+            <label for="nickname-input" class="text-gray-300 font-semibold">Nickname</label>
+            <input type="text" id="nickname-input" placeholder="Enter your name..." class="p-2 bg-gray-900 text-white border border-gray-600 rounded focus:outline-none focus:border-yellow-500" />
+            <button id="play-btn" class="mt-2 bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                Play
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Game UI Overlay -->
+    <div id="game-ui" class="absolute inset-0 pointer-events-none hidden z-10">
+        <!-- Status & Help -->
+        <div class="absolute top-4 left-4 p-4 bg-black/60 pointer-events-auto rounded max-w-xs border border-gray-700">
+            <h2 class="text-lg font-bold text-yellow-500">Medieval Patterns</h2>
+            <p class="text-xs mt-1 text-gray-300">WASD: Move | Left Click: Attack | Space: Dodge | E: Pickup | I: Inventory | B: Blacksmith</p>
+            <p class="text-sm mt-2 font-semibold text-green-400" id="status">Connected</p>
+        </div>
+        
+        <!-- Player Stats -->
+        <div class="absolute bottom-4 left-4 p-4 bg-black/60 pointer-events-auto rounded w-48 border border-gray-700">
+            <div class="mb-2">
+                <div class="flex justify-between text-xs text-red-400 mb-1"><span class="font-bold">HP</span><span id="hp-text">100/100</span></div>
+                <div class="w-full bg-gray-700 h-2 rounded"><div id="hp-bar" class="bg-red-500 h-2 rounded" style="width: 100%"></div></div>
+            </div>
+            <div class="mb-2">
+                <div class="flex justify-between text-xs text-green-400 mb-1"><span class="font-bold">Stamina</span><span id="stamina-text">100/100</span></div>
+                <div class="w-full bg-gray-700 h-2 rounded"><div id="stamina-bar" class="bg-green-500 h-2 rounded" style="width: 100%"></div></div>
+            </div>
+            <div class="text-yellow-400 text-sm font-bold flex items-center gap-1 mt-3">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.736 6.979C9.208 6.193 9.696 6 10 6c.304 0 .792.193 1.264.979a1 1 0 001.715-1.029C12.279 4.784 11.232 4 10 4s-2.279.784-2.979 1.95c-.285.475-.507 1-.67 1.55H6a1 1 0 000 2h.013a9.358 9.358 0 000 1H6a1 1 0 100 2h.343c.163.55.385 1.075.67 1.55C7.721 15.216 8.768 16 10 16c1.232 0 2.279-.784 2.979-1.95a1 1 0 10-1.715-1.029c-.472.786-.96.979-1.264.979-.304 0-.792-.193-1.264-.979a4.265 4.265 0 01-.264-.521H10a1 1 0 100-2H8.017a7.36 7.36 0 010-1H10a1 1 0 100-2H8.456c.035-.191.083-.377.141-.557h1.403a1 1 0 100-2H8.736z" clip-rule="evenodd"></path></svg>
+                <span id="gold-text">0</span>
+            </div>
+        </div>
+
+        <!-- Boss HP Bar (Hidden by default) -->
+        <div id="boss-ui" class="absolute top-4 left-1/2 transform -translate-x-1/2 w-[500px] hidden flex-col items-center">
+            <h3 class="text-red-500 font-bold text-xl drop-shadow-md mb-1">Crypt Guardian</h3>
+            <div class="w-full bg-gray-900 h-6 border-2 border-gray-700 rounded-sm relative">
+                <div id="boss-hp-bar" class="bg-red-600 h-full transition-all duration-200" style="width: 100%"></div>
+                <div id="boss-hp-text" class="absolute inset-0 flex items-center justify-center text-white text-xs font-bold drop-shadow">600 / 600</div>
+            </div>
+        </div>
+
+        <!-- Floating UI Layer (Nameplates, Damage Text) -->
+        <div id="floating-ui" class="absolute inset-0 overflow-hidden pointer-events-none"></div>
+
+        <!-- Inventory Modal (Hidden) -->
+        <div id="inventory-ui" class="absolute inset-0 bg-black/80 hidden items-center justify-center pointer-events-auto z-40">
+            <div class="bg-gray-800 border border-gray-600 p-6 rounded-lg w-[600px] h-[400px] flex flex-col relative">
+                <button id="close-inventory-btn" class="absolute top-2 right-2 text-gray-400 hover:text-white">✕</button>
+                <h2 class="text-2xl font-bold text-white mb-4">Inventory</h2>
+                <div id="inventory-grid" class="grid grid-cols-5 gap-2 overflow-y-auto content-start flex-1">
+                    <!-- Items go here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Blacksmith Modal (Hidden) -->
+        <div id="blacksmith-ui" class="absolute inset-0 bg-black/80 hidden items-center justify-center pointer-events-auto z-40">
+            <div class="bg-gray-800 border border-gray-600 p-6 rounded-lg w-[400px] flex flex-col relative">
+                <button id="close-blacksmith-btn" class="absolute top-2 right-2 text-gray-400 hover:text-white">✕</button>
+                <h2 class="text-2xl font-bold text-yellow-500 mb-2">Blacksmith</h2>
+                <p class="text-gray-300 text-sm mb-4 border-b border-gray-700 pb-2">"Got some unappraised gear? Show me the gold and I'll reveal its true power."</p>
+                <div id="blacksmith-items" class="flex flex-col gap-2 max-h-[300px] overflow-y-auto">
+                    <!-- Unappraised items go here -->
+                </div>
+            </div>
+        </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
