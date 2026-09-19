@@ -14,7 +14,7 @@ model User {
   gold      Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   items     Item[]
   listings  AuctionListing[]
 }
@@ -27,7 +27,7 @@ model Item {
   isAppraised Boolean  @default(false)
   floatVal    Decimal? @db.Decimal(10, 7)
   patternSeed Int?
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -41,6 +41,6 @@ model AuctionListing {
   sellerId  String
   seller    User     @relation(fields: [sellerId], references: [id])
   price     Int
-  
+
   createdAt DateTime @default(now())
 }

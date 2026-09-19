@@ -94,7 +94,7 @@ function createPlayerSprite(color: number, isBoss = false) {
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.y = isBoss ? 3 : 1; // Half height
     mesh.name = 'body';
-    
+
     // Weapon (Procedural Placeholder)
     if (!isBoss) {
         const weaponGeo = new THREE.PlaneGeometry(0.2, 1.5);
@@ -139,12 +139,12 @@ async function connect() {
                     // Very simple lerp for remote players could go here
                     s.position.set(player.x, 0, player.z);
                 }
-                
+
                 if (isMe) {
                     if(staminaEl) staminaEl.innerText = `Stamina: ${Math.floor(player.stamina)}`;
                     if(hpEl) hpEl.innerText = `HP: ${player.hp}`;
                 }
-                
+
                 // Visual feedback for dodging (ghost effect)
                 const bodyMesh = s?.getObjectByName('body') as THREE.Mesh;
                 if(bodyMesh) {
@@ -176,7 +176,7 @@ async function connect() {
                 entities['boss'] = bossSprite;
             }
             bossSprite.position.set(bossState.x, 0, bossState.z);
-            
+
             // Visual cue for enrage
             const mesh = bossSprite.children[0] as THREE.Mesh;
             if (bossState.phase === 'enraged') {
@@ -184,7 +184,7 @@ async function connect() {
             } else {
                 (mesh.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
             }
-            
+
             // Telegraphing
             if (bossState.isTelegraphing) {
                 telegraphMesh.visible = true;
@@ -226,22 +226,22 @@ function animate() {
     if (room && room.sessionId && entities[room.sessionId]) {
         const me = entities[room.sessionId];
         const serverPlayer = room.state.players.get(room.sessionId);
-        
+
         let currentSpeed = BASE_SPEED;
-        
+
         // Handle Dodge Input
         if (keys[' '] && now - lastDodgeTime > DODGE_COOLDOWN && serverPlayer && serverPlayer.stamina >= 30) {
             lastDodgeTime = now;
             room.send('dodge');
             isLocallyDodging = true;
-            
+
             // Determine dodge direction
             let dx = 0, dz = 0;
             if (keys.w) { dx -= 1; dz -= 1; }
             if (keys.s) { dx += 1; dz += 1; }
             if (keys.a) { dx -= 1; dz += 1; }
             if (keys.d) { dx += 1; dz -= 1; }
-            
+
             if (dx === 0 && dz === 0) {
                 // If not moving, dodge backwards from mouse aim
                 raycaster.setFromCamera(mouse, camera);
@@ -251,9 +251,9 @@ function animate() {
                     dz = me.position.z - intersectPoint.z;
                 }
             }
-            
+
             dodgeDir.set(dx, 0, dz).normalize();
-            
+
             setTimeout(() => {
                 isLocallyDodging = false;
             }, 250); // Dodge duration 0.25s
@@ -261,7 +261,7 @@ function animate() {
 
         let dx = 0;
         let dz = 0;
-        
+
         if (isLocallyDodging) {
              currentSpeed = BASE_SPEED * DODGE_SPEED_MULTIPLIER;
              dx = dodgeDir.x;
@@ -272,7 +272,7 @@ function animate() {
             if (keys.s) { dx += 1; dz += 1; } // isometric down
             if (keys.a) { dx -= 1; dz += 1; } // isometric left
             if (keys.d) { dx += 1; dz -= 1; } // isometric right
-            
+
             if (dx !== 0 || dz !== 0) {
                 const len = Math.sqrt(dx * dx + dz * dz);
                 dx /= len;

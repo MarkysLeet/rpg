@@ -8,7 +8,7 @@ export const calculateFloatBonus = (floatVal: number): number => {
 export const calculateItemDamage = (rarity: ItemRarity, floatVal: number): number => {
     const config = RarityConfigs[rarity];
     const bonus = calculateFloatBonus(floatVal);
-    
+
     // In this simplified version, let's say the float bonus applies to maxDamage
     return config.minDamage + ((config.maxDamage - config.minDamage) * (1.0 + bonus));
 }

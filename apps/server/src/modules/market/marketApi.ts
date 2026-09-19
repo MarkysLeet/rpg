@@ -9,7 +9,7 @@ router.get("/auctions", async (req, res) => {
     try {
         const page = parseInt(req.query.page as string) || 1;
         const limit = 20;
-        
+
         const listings = await prisma.auctionListing.findMany({
             skip: (page - 1) * limit,
             take: limit,
@@ -85,7 +85,7 @@ router.post("/auctions/:id/buy", async (req, res) => {
             // Add gold to seller (minus 5% fee)
             const fee = Math.floor(listing.price * 0.05);
             const sellerProceeds = listing.price - fee;
-            
+
             await tx.user.update({
                 where: { id: listing.sellerId },
                 data: { gold: { increment: sellerProceeds } }
