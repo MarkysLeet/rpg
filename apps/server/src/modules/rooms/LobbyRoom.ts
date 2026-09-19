@@ -1,4 +1,6 @@
-import { Room, Client } from "colyseus";
+import colyseus from 'colyseus';
+const { Room } = colyseus;
+import type { Client } from 'colyseus';
 import { Schema, type, MapSchema } from "@colyseus/schema";
 import { PlayerState as SharedPlayerState, ItemRarity, RarityConfigs } from "@medieval-patterns/shared";
 
