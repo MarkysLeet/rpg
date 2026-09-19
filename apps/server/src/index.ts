@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
-import colyseus from 'colyseus';
-const { Server } = colyseus;
+import { Server } from "colyseus";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import http from "http";
 import marketApi from "./modules/market/marketApi.js";
