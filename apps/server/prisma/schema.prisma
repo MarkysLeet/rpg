@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid()) // Can map to Supabase auth.users.id
+  email     String   @unique
+  username  String   @unique
+  gold      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  items     Item[]
+  listings  AuctionListing[]
+}
+
+model Item {
+  id          String   @id @default(uuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id])
+  rarity      String   // Common, Uncommon, Rare, Epic, Elite, Mythic
+  isAppraised Boolean  @default(false)
+  floatVal    Decimal? @db.Decimal(10, 7)
+  patternSeed Int?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  listing     AuctionListing?
+}
+
+model AuctionListing {
+  id        String   @id @default(uuid())
+  itemId    String   @unique
+  item      Item     @relation(fields: [itemId], references: [id])
+  sellerId  String
+  seller    User     @relation(fields: [sellerId], references: [id])
+  price     Int
+  
+  createdAt DateTime @default(now())
+}

@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background-color: #1a1a1a;
+  color: white;
+  font-family: sans-serif;
+}
+
+#ui-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none; /* Let clicks pass through to canvas */
+  z-index: 10;
+}
+
+.pointer-events-auto {
+  pointer-events: auto;
+}
