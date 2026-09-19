@@ -3,8 +3,8 @@ import cors from "cors";
 import { Server } from "colyseus";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import http from "http";
-import marketApi from "./modules/market/marketApi";
-import { LobbyRoom } from "./modules/rooms/LobbyRoom";
+import marketApi from "./modules/market/marketApi.js";
+import { LobbyRoom } from "./modules/rooms/LobbyRoom.js";
 
 const port = Number(process.env.PORT || 2567);
 const app = express();

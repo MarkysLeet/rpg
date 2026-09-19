@@ -5,9 +5,12 @@ import { getAuraHue } from '@medieval-patterns/shared';
 
 // --- UI Elements ---
 const statusEl = document.getElementById('status')!;
+const staminaEl = document.getElementById('stamina')!;
+const hpEl = document.getElementById('hp')!;
 
 // --- Colyseus Client ---
-const client = new Client('ws://localhost:2567');
+const serverUrl = import.meta.env.VITE_SERVER_URL || (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.hostname + ':2567';
+const client = new Client(serverUrl);
 let room: Room | undefined;
 
 // --- Three.js Setup ---
@@ -34,14 +37,26 @@ scene.add(gridHelper);
 // --- Entities Map ---
 const entities: Record<string, THREE.Group> = {};
 
+// --- Boss Telegraph Visual ---
+const telegraphGeo = new THREE.CircleGeometry(1, 32);
+const telegraphMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+const telegraphMesh = new THREE.Mesh(telegraphGeo, telegraphMat);
+telegraphMesh.rotation.x = -Math.PI / 2; // Lie flat on ground
+telegraphMesh.position.y = 0.05; // Slightly above ground
+telegraphMesh.visible = false;
+scene.add(telegraphMesh);
+
+
 // --- Input State ---
-const keys = { w: false, a: false, s: false, d: false };
+const keys = { w: false, a: false, s: false, d: false, ' ': false };
 
 window.addEventListener('keydown', (e) => {
-    if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase() as keyof typeof keys] = true;
+    const k = e.key.toLowerCase();
+    if (keys.hasOwnProperty(k)) keys[k as keyof typeof keys] = true;
 });
 window.addEventListener('keyup', (e) => {
-    if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase() as keyof typeof keys] = false;
+    const k = e.key.toLowerCase();
+    if (keys.hasOwnProperty(k)) keys[k as keyof typeof keys] = false;
 });
 
 const raycaster = new THREE.Raycaster();
@@ -63,6 +78,11 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// Dodge Mechanics
+let lastDodgeTime = 0;
+const DODGE_COOLDOWN = 1000;
+const DODGE_SPEED_MULTIPLIER = 2.5;
+
 // --- Helper to create a Billboard Sprite ---
 function createPlayerSprite(color: number, isBoss = false) {
     const group = new THREE.Group();
@@ -73,6 +93,7 @@ function createPlayerSprite(color: number, isBoss = false) {
     const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.y = isBoss ? 3 : 1; // Half height
+    mesh.name = 'body';
     
     // Weapon (Procedural Placeholder)
     if (!isBoss) {
@@ -110,14 +131,31 @@ async function connect() {
             scene.add(sprite);
             entities[sessionId] = sprite;
 
-            // Optional: fake a weapon aura for demo
             if (isMe) updateAura(sprite, 123);
 
             player.onChange(() => {
                 const s = entities[sessionId];
                 if (s && !isMe) {
+                    // Very simple lerp for remote players could go here
                     s.position.set(player.x, 0, player.z);
-                    // Rotation would affect sprite flipping or weapon rotation
+                }
+                
+                if (isMe) {
+                    if(staminaEl) staminaEl.innerText = `Stamina: ${Math.floor(player.stamina)}`;
+                    if(hpEl) hpEl.innerText = `HP: ${player.hp}`;
+                }
+                
+                // Visual feedback for dodging (ghost effect)
+                const bodyMesh = s?.getObjectByName('body') as THREE.Mesh;
+                if(bodyMesh) {
+                     const mat = bodyMesh.material as THREE.MeshBasicMaterial;
+                     if(player.isDodging) {
+                         mat.transparent = true;
+                         mat.opacity = 0.4;
+                     } else {
+                         mat.transparent = false;
+                         mat.opacity = 1.0;
+                     }
                 }
             });
         });
@@ -139,12 +177,21 @@ async function connect() {
             }
             bossSprite.position.set(bossState.x, 0, bossState.z);
             
-            // simple visual cue for enrage
+            // Visual cue for enrage
             const mesh = bossSprite.children[0] as THREE.Mesh;
             if (bossState.phase === 'enraged') {
                 (mesh.material as THREE.MeshBasicMaterial).color.setHex(0xffaa00);
             } else {
                 (mesh.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
+            }
+            
+            // Telegraphing
+            if (bossState.isTelegraphing) {
+                telegraphMesh.visible = true;
+                telegraphMesh.position.set(bossState.telegraphPositionX, 0.05, bossState.telegraphPositionZ);
+                telegraphMesh.scale.set(bossState.telegraphRadius, bossState.telegraphRadius, 1);
+            } else {
+                telegraphMesh.visible = false;
             }
         });
 
@@ -164,7 +211,9 @@ connect();
 
 // --- Main Loop ---
 let lastTime = performance.now();
-const SPEED = 10;
+const BASE_SPEED = 10;
+let isLocallyDodging = false;
+let dodgeDir = new THREE.Vector3();
 
 function animate() {
     requestAnimationFrame(animate);
@@ -176,36 +225,73 @@ function animate() {
     // Movement & Aiming
     if (room && room.sessionId && entities[room.sessionId]) {
         const me = entities[room.sessionId];
+        const serverPlayer = room.state.players.get(room.sessionId);
         
-        // Simple WASD
-        let dx = 0;
-        let dz = 0;
-        if (keys.w) { dx -= 1; dz -= 1; } // isometric up
-        if (keys.s) { dx += 1; dz += 1; } // isometric down
-        if (keys.a) { dx -= 1; dz += 1; } // isometric left
-        if (keys.d) { dx += 1; dz -= 1; } // isometric right
-
-        // Normalize
-        if (dx !== 0 || dz !== 0) {
-            const len = Math.sqrt(dx * dx + dz * dz);
-            dx /= len;
-            dz /= len;
+        let currentSpeed = BASE_SPEED;
+        
+        // Handle Dodge Input
+        if (keys[' '] && now - lastDodgeTime > DODGE_COOLDOWN && serverPlayer && serverPlayer.stamina >= 30) {
+            lastDodgeTime = now;
+            room.send('dodge');
+            isLocallyDodging = true;
+            
+            // Determine dodge direction
+            let dx = 0, dz = 0;
+            if (keys.w) { dx -= 1; dz -= 1; }
+            if (keys.s) { dx += 1; dz += 1; }
+            if (keys.a) { dx -= 1; dz += 1; }
+            if (keys.d) { dx += 1; dz -= 1; }
+            
+            if (dx === 0 && dz === 0) {
+                // If not moving, dodge backwards from mouse aim
+                raycaster.setFromCamera(mouse, camera);
+                const intersectPoint = new THREE.Vector3();
+                if (raycaster.ray.intersectPlane(floorPlane, intersectPoint)) {
+                    dx = me.position.x - intersectPoint.x;
+                    dz = me.position.z - intersectPoint.z;
+                }
+            }
+            
+            dodgeDir.set(dx, 0, dz).normalize();
+            
+            setTimeout(() => {
+                isLocallyDodging = false;
+            }, 250); // Dodge duration 0.25s
         }
 
-        me.position.x += dx * SPEED * dt;
-        me.position.z += dz * SPEED * dt;
+        let dx = 0;
+        let dz = 0;
+        
+        if (isLocallyDodging) {
+             currentSpeed = BASE_SPEED * DODGE_SPEED_MULTIPLIER;
+             dx = dodgeDir.x;
+             dz = dodgeDir.z;
+        } else {
+            // Simple WASD
+            if (keys.w) { dx -= 1; dz -= 1; } // isometric up
+            if (keys.s) { dx += 1; dz += 1; } // isometric down
+            if (keys.a) { dx -= 1; dz += 1; } // isometric left
+            if (keys.d) { dx += 1; dz -= 1; } // isometric right
+            
+            if (dx !== 0 || dz !== 0) {
+                const len = Math.sqrt(dx * dx + dz * dz);
+                dx /= len;
+                dz /= len;
+            }
+        }
 
-        // Mouse aim rotation
+        if (dx !== 0 || dz !== 0) {
+            me.position.x += dx * currentSpeed * dt;
+            me.position.z += dz * currentSpeed * dt;
+            room.send('move', { x: me.position.x, z: me.position.z, rotation: 0 }); // Ignoring rotation for move payload for now
+        }
+
+        // Mouse aim rotation (Client side visual)
         raycaster.setFromCamera(mouse, camera);
         const intersectPoint = new THREE.Vector3();
         if (raycaster.ray.intersectPlane(floorPlane, intersectPoint)) {
-            const angle = Math.atan2(intersectPoint.x - me.position.x, intersectPoint.z - me.position.z);
-            // Send state to server
-            room.send('move', { x: me.position.x, z: me.position.z, rotation: angle });
-        } else {
-             room.send('move', { x: me.position.x, z: me.position.z, rotation: 0 });
+            // we could rotate a weapon or body here based on aim
         }
-
 
         // Update Camera to follow player
         camera.position.x = me.position.x + 20;
@@ -221,3 +307,24 @@ function animate() {
 }
 
 animate();
+
+// Add HP/Stamina UI elements
+const uiContainer = document.querySelector('.p-4')!;
+const hpNode = document.createElement('p');
+hpNode.id = 'hp';
+hpNode.className = 'text-red-400 font-bold mt-2';
+hpNode.innerText = 'HP: 100';
+uiContainer.appendChild(hpNode);
+
+const stNode = document.createElement('p');
+stNode.id = 'stamina';
+stNode.className = 'text-green-400 font-bold';
+stNode.innerText = 'Stamina: 100';
+uiContainer.appendChild(stNode);
+
+// Debug: Attack Boss on Click
+window.addEventListener('mousedown', (e) => {
+    if (e.button === 0 && room) {
+        room.send('attack_boss', { damage: 100 });
+    }
+});

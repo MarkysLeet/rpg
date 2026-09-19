@@ -1,4 +1,4 @@
-import { ItemRarity, RarityConfigs } from "./types";
+import { ItemRarity, RarityConfigs } from "./types.js";
 
 export const calculateFloatBonus = (floatVal: number): number => {
     // 0.0000001 (Perfect) gives ~25% bonus. 0.9999999 (Worst) gives ~0% bonus.
